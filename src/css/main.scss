@@ -1,0 +1,478 @@
+@import '../../node_modules/leaflet/dist/leaflet.css';
+
+@import '../../node_modules/@glartek/leaflet.markercluster/dist/MarkerCluster.css';
+@import '../../node_modules/@glartek/leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+@import '../../../treecomponent/src/css/tree.scss'; 
+
+
+html, body {
+    height: 100%;
+	width:100%;
+    margin: 0px !important;
+    padding: 0px;
+    font-family: sans-serif;
+    font-size: 12px;
+   
+	box-sizing: border-box;
+}
+
+*, *:before, *:after {
+	box-sizing: inherit;
+}
+
+.flex-no-shrink {
+    flex-shrink: 0;
+}
+
+/* Karten-Symbole */
+@font-face{font-family:"Font Awesome 5 Free";font-style:normal;font-weight:900;font-display:auto;
+    src:url(https://use.fontawesome.com/releases/v5.7.2/webfonts/fa-solid-900.eot);
+    src:url(https://use.fontawesome.com/releases/v5.7.2/webfonts/fa-solid-900.eot?#iefix) format("embedded-opentype"),
+    url(https://use.fontawesome.com/releases/v5.7.2/webfonts/fa-solid-900.woff2) format("woff2"),
+    url(https://use.fontawesome.com/releases/v5.7.2/webfonts/fa-solid-900.woff) format("woff"),
+    url(https://use.fontawesome.com/releases/v5.7.2/webfonts/fa-solid-900.ttf) format("truetype"),
+    url(https://use.fontawesome.com/releases/v5.7.2//webfonts/fa-solid-900.svg#fontawesome) format("svg")
+}
+
+.mapDivIcon {
+    background-color: green;
+    border-radius: 10px;
+}
+/* font, MapIcon */
+.afas {
+	font-family: "Font Awesome 5 Free";
+	position: absolute;
+	top:10px;
+	left:10px;	
+	transform: translate(-50%, -50%);
+	font-weight: 900;
+	font-style: normal;
+}
+/* Menu */
+
+.menu-ctrl {
+    width:calc(100% - 0px);
+    display: flex;
+}
+
+.menu-ctrl>input {
+    vertical-align: middle;
+    margin-left: 5px;
+    height: calc(2.7rem + 4px);
+    border: 2px solid #afafaf;  
+    flex-grow: 1;
+}
+
+.menu-button {
+    display: inline-block;
+    vertical-align: middle;
+	overflow: hidden;
+	transition: all 80ms; 	
+	background-color: orange;
+	padding: 4px;
+	margin:auto;
+	border: 2px solid rgb(175, 175, 175);
+	width: calc(2.7rem + 4px);
+    height: calc(2.7rem + 4px);
+} 
+
+
+
+.closed>.menu-button>div {
+	height: 3px;
+	top: calc(50% - 3px);
+	width: 100%;
+	position: relative;
+	left: 0px;
+	background-color: white;
+}
+  
+.closed>.menu-button>div:before, .closed>.menu-button>div:after {
+	  content: '';
+	  position: absolute;
+	  height: 3px;
+	  width: 100%;  
+	  background-color: white;
+}  
+.closed>.menu-button>div:before {
+	top: -8px;
+}
+.closed>.menu-button>div:after {
+	top: 8px;
+}
+
+.minify-button, .opened1>.menu-button {
+	display: block;
+	width: 100%;
+	height: 100%;
+	position: relative;
+	overflow: hidden;
+	transition: all 80ms; 	
+	margin:auto;
+}
+  
+.opened>.menu-button>div {	
+	width: 100%;
+	height: 100%;
+	position: relative;
+	overflow: hidden;
+}
+  
+  .minify-button-block::before, .opened>.menu-button>div::before {
+    content: '';
+    position: absolute;
+    display: block;
+    left: 41%;
+    top: 45%;
+    width: 40%;
+    height: 10%;
+    background-color: white;
+    transform: translateX(0px) translateY(0px) rotate(40deg);	
+  }
+  .minify-button-block::after, .opened>.menu-button>div::after {
+	content: '';
+    position: absolute;
+    /* bottom: 0; */
+    display: block;
+    left: 19%;
+    top: 45%;
+    width: 40%;
+    height: 10%;
+    background-color: white;
+    transform: translateX(0) translateY(0px) rotate(-40deg);
+  }
+
+
+/* autocomplete */
+
+.autocomplete {
+    background: white;
+    z-index: 9999;
+    font: 14px/22px "-apple-system", BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow: auto;
+    box-sizing: border-box;
+    border: 1px solid rgba(50, 50, 50, 0.6);
+}
+
+.autocomplete * {
+    font: inherit;
+}
+.autocomplete label {
+    width: 100%;
+    background-color: aliceblue;
+    margin-top: 2px;
+    margin-bottom: 1px;
+    display: inline-block;
+    padding: 2px;
+}
+.autocomplete textarea {
+    width: 100%;
+    border: none;
+    resize: none;
+}
+.autocomplete > div {
+    padding: 0 4px;
+}
+
+.autocomplete .group {
+    background: #eee;
+}
+
+.autocomplete > div:hover:not(.group),
+.autocomplete > div.selected {
+    background: #c7e5ff;
+    cursor: pointer;
+}
+
+/* LayerTree */
+.leaflet-top.leaflet-left {
+    height: 100%;
+    width: 533px;
+    display: flex;
+    flex-direction: column;
+}
+
+.treecontainer {
+    font-size: 1.2rem;
+}
+.inset-block {
+    background-color: transparent;
+}
+
+element.style {
+    display: flex;
+}
+.row-wrapper {
+    background-color: rgba(100, 100, 100, 0.1);
+}
+/*
+$treerow-padding : 0.7rem;
+$treerow-indent  : 1.0rem;
+$tree-fontsize : 1.0rem;
+
+.leaflet-top.leaflet-left {
+    height: 100%;
+    width: 470px;
+    display: flex;
+    flex-direction: column;
+}
+
+.treecontainer {
+	position: relative;
+	background-color: lightgray;
+    width: calc(100% - 20px);
+    max-height: calc(100% - 20px);
+    overflow: auto;
+    pointer-events: all;
+    font-size: $tree-fontsize;
+    border: 2px solid #afafaf;
+}
+
+.treebackground {
+    background-color: #d3d3d3;
+}
+
+.row-wrapper {
+	background-color: #d3d3d3;
+}
+
+.treerow {
+	position: relative;	
+	white-space: nowrap;
+	padding-left: $treerow-padding;
+	background-image: linear-gradient(rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 100%);
+}
+.treeicon {
+	display: inline;
+}
+
+.treeicon label {
+    vertical-align: middle;
+}
+.treelabel {
+	display: inline;
+    padding-right: 2px;
+    vertical-align: middle;
+}
+.treelabel span, .treelabel div {
+	display: inline;
+}
+.treerow .opened::after {
+	content: '\25bc';	
+	display: inline-block;
+	line-height: initial; 
+	width: $treerow-indent;
+	text-align: center;
+	position: relative;	
+	margin-right: 0.18rem;
+}
+
+.treerow .closed::after {
+	content: '\25ba';
+	display: inline-block;
+	line-height: initial; 
+	width: $treerow-indent;
+	text-align: center;
+	position: relative;	
+	margin-right: 0.18rem;
+}
+
+.treeicon input[type="checkbox"], .treeicon input[type="radio"] {
+	display: none;
+    vertical-align: middle;
+}
+
+.treeicon input[type="checkbox"]+label::before {	
+    width: 0.9rem;
+    height: 0.9rem;
+	border: 0.18rem solid darkgrey;
+	background-color: #fff;
+	display: inline-block;
+	position: relative;
+	content: "";
+	margin-right: 0.18rem;
+}
+
+.treeicon input[type="radio"] + label::before {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 1rem;
+    border: 0.18rem solid darkgrey;
+    background-color: #fff;
+	display: inline-block;
+	position: relative;
+	top: 0.18rem;
+	content: "";
+	margin-right: 0.18rem;
+}
+
+.treeicon input[type="checkbox"]:indeterminate+label::before {
+	box-shadow: inset 0px 0px 0px 3px #fff;
+	background-color: #cacaca;
+}
+.treeicon input[type="checkbox"]:checked+label::before {
+	box-shadow: inset 0px 0px 0px 2px #fff;
+	background-color: #A9A9A9;
+}
+.treeicon input[type="radio"]:checked+label::before {
+	box-shadow: inset 0px 0px 0px 2px #fff;
+	background-color: #A9A9A9;
+}
+*/
+
+/* Popup */
+.popup-facility {
+    width: 100%;
+    overflow: auto;
+}
+
+.popup-facility table:first-child {
+    background-color: beige;
+}
+
+.popup-facility>table {
+    background-color: aliceblue;
+    border-width: thin;
+    border-style: solid;
+    border-color: black;
+}
+
+
+/*
+.popup-facilityoffer {
+    background-color: beige;
+    margin-left: 1rem;
+}
+*/
+
+.popup-facility td {
+    vertical-align: top;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.popup-facility td a, .popup-facilityoffer td a {
+    max-width: 150px;
+    white-space: nowrap;
+}
+.popup-facility td a:hover, .popup-facilityoffer td a:hover {
+    max-width: unset;    
+}
+
+.popup-facility td:first-child, .popup-facilityoffer td:first-child {
+    font-weight: bolder;
+}
+
+
+
+
+/*
+.themen {
+    display: block;
+	padding-left:0px;
+    padding-right:0px;
+    
+}
+
+.layerdescr {
+    background-color: white;
+    padding-left:50px;
+	padding-right:50px; 
+}
+
+.layeratts {
+    padding-left: 80px;
+}
+
+.layeratts > label {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+.layeratts > textarea {
+    padding-top: 5px;
+    padding-left: 5px;
+    padding-bottom: 5px;
+    padding-right: 5px;
+    margin-bottom: 12px;
+}
+
+.themen h2 {
+    margin-left: 10px;
+	padding: 10px;
+    padding-top: 10px;
+	padding-bottom: 10px;
+    border-radius: 5px;
+    border: 2px solid #ccc;	
+    
+}
+.themen > h2 {
+    background-color: #d9fadd;
+}
+
+textarea {
+    white-space: pre-wrap;
+}
+
+textarea.input_error {
+    border: 1px red solid;
+}
+
+.bttn_fixed {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+}
+
+.bttn_fixed > button:first-child {
+    margin-bottom: 20px;
+}
+
+.bttn_fixed > button {
+	box-shadow: 0px 0px 0px 2px #9fb4f2;
+	background:linear-gradient(to bottom, #7892c2 5%, #476e9e 100%);
+	background-color:#7892c2;
+	border-radius:10px;
+	border:1px solid #4e6096;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	font-family:Arial;
+	font-size:19px;
+	padding:12px 37px;
+	text-decoration:none;
+	text-shadow:0px 1px 0px #283966;
+}
+.bttn_fixed > button:hover {
+	background:linear-gradient(to bottom, #476e9e 5%, #7892c2 100%);
+	background-color:#476e9e;
+}
+.bttn_fixed > button:active {
+	position:relative;
+	top:1px;
+}
+
+
+.msg {
+	font-size: 24px; font-weight:700; color:gray;
+}
+
+.themen.collapse>div, .layerdescr.collapse>div {
+    display: none;
+}
+
+.themen:first-child, .themen.collapse:first-child {    
+    display: block !important;
+}
+
+.layeratts textarea, .layeratts label {
+    width: 100%;
+    display: block;
+}
+*/
+
+
