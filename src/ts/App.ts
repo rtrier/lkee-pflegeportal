@@ -1,21 +1,19 @@
 
-// const L = import("leaflet");
-// const L = require("leaflet");
-
 import {Map, TileLayer} from 'leaflet';
-import { FacilityPopupFactory, FacilitySelector } from './data/Facility';
+import { FacilityIconFactory, FacilityPopupFactory, FacilitySelector } from './data/Facility';
 import { CategorieLayer } from './maputil/CategorieLayer';
 import { BaseLayerDefinition, LayerControl, LayerControlOptions } from './maputil/LayerControl';
 import { MenuControl } from './maputil/MenuControl';
 import { getJSON } from './util/HtmlUtil';
 
+const host = '/pflegeportal';
+// const host = '';								
 export class App {
 
     map: Map;
     baseLayerCtrl: LayerControl;
     categorieLayerCtrl: LayerControl;
     menuCtrl: MenuControl;
-    // categorieLayer: CategorieLayer<any, any>;
 
 	mapViewChanged(evt: L.LeafletEvent) {
 		const viewParam = {
@@ -39,7 +37,6 @@ export class App {
 
     initMap() {
 
-
         const map = this.map = new Map('map', <L.MapOptions>{
             zoomControl: false,
             // contextmenu: true,
@@ -49,11 +46,14 @@ export class App {
 
         const baseLayers:BaseLayerDefinition[] = [
             {
-                id: 'orka',
-                name: 'ORKa.MV – Offene Regionalkarte Mecklenburg-Vorpommern',
-                layer: new TileLayer(
-                    'https://www.orka-mv.de/geodienste/orkamv/tiles/1.0.0/orkamv/GLOBAL_WEBMERCATOR/{z}/{x}/{y}.png',
-                    {attribution: 'Kartenbild © Hanse- und Universitätsstadt Rostock (<a rel="license" target="_blank" href="https://creativecommons.org/licenses/by/4.0/deed.de">CC BY 4.0</a>)'})
+                id: 'webatlas',
+                name: 'WebAtlasDE',
+                layer: new TileLayer(                   
+                    'https://sgx.geodatenzentrum.de/wmts_webatlasde.light/tile/1.0.0/webatlasde.light/default/DE_EPSG_3857_LIGHT/{z}/{y}/{x}.png',
+                    {    "minZoom": 5,
+                    "maxZoom": 15,
+                    "zoomOffset": -5,
+                        attribution: '© <a href="http://www.bkg.bund.de/" target="_blank">Bundesamt für Kartographie und Geodäsie</a> 2020, <a href="http://sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf" target="_blank">Datenquellen</a>'})
             },{
                 id: 'topPlusOpen',
                 name: 'TopPlusOpen (Normalausgabe)',
@@ -75,19 +75,18 @@ export class App {
             }
         ]
 
-
         const layerCtrlOptions:LayerControlOptions = {
             baseLayers : baseLayers,
-            baseLayer: baseLayers[0].layer,
+            baseLayer: baseLayers[1].layer,
             position: 'topleft',
             className: 'flex-no-shrink'
         }
-
         
         this.baseLayerCtrl = new LayerControl(layerCtrlOptions);
         this.categorieLayerCtrl = new LayerControl({position: 'topleft'});
 
         this.menuCtrl = new MenuControl({
+			parent: document.getElementById('ctrl'),										
             position:'topleft', 
             baseLayerCtrl:this.baseLayerCtrl,
             categorieLayerCtrl: this.categorieLayerCtrl,
@@ -95,15 +94,9 @@ export class App {
         });
         map.addControl(this.menuCtrl);
 
-        map.addLayer(baseLayers[0].layer);
-        
+        map.addLayer(baseLayers[1].layer);
 
-        
-        
-
-        // this.map.addLayer( 
-        //     new TileLayer('https://sgx.geodatenzentrum.de/wmts_topplus_web_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png')
-        // )
+        this.menuCtrl.openMenu();
 
         const storedViewParam = this._getStoredViewParam();
         if (storedViewParam) {
@@ -112,22 +105,26 @@ export class App {
             this.map.setView([51.60340695109007, 13.488503153898543], 10);
         }
         this.map.setView([51.60340695109007, 13.488503153898543], 10);
+		this.map.createPane("highlightPane").style.zIndex = '625';
+        														  
         
         const categorieLayer = new CategorieLayer({
-            categorieUrl:'/kategories',
-            url: '/facilities',
+            categorieUrl:host+'/kategories',
+            url: host+'/facilities',
             selector: new FacilitySelector(),
             popupFactory: new FacilityPopupFactory(),
-            disableClusteringAtZoom: 15
+            disableClusteringAtZoom: 15,
+            iconFactory: new FacilityIconFactory()
         });
-        
+		this.menuCtrl.addCategorieLayer(categorieLayer, true);													  
+        /*
         categorieLayer.once("CategoriesLoaded", (evt)=>{
             console.info('App CategoriesLoaded', categorieLayer);
             this.categorieLayerCtrl.addCategorieLayer("Kategories", categorieLayer);
             this.map.addLayer(categorieLayer);
         });
         categorieLayer.loadCategories();
-        
+        */
 
         this.map.on("zoomend", this.mapViewChanged, this);
         this.map.on("moveend", this.mapViewChanged, this);
@@ -135,13 +132,13 @@ export class App {
    }
 
     private _search(query: string, cb: (results: any[]) => any): void {
-        console.info("hgsdf");
+        console.info(`_search ${query}`);
         const params = {
             searchTxt: query.toLowerCase()
         }
 
         getJSON(
-            '/search',
+            host+'/search',
             params,
             (data:any) => { cb(data) }
         )

@@ -1,4 +1,14 @@
-export function createHtmlElement(tag:string, parent:HTMLElement, className?:string):HTMLElement {
+// export function createHtmlElement(tag:string, parent:HTMLElement, className?:string):HTMLElement {
+//     const el = document.createElement(tag);
+//     if (parent) {
+//         parent.appendChild(el);
+//     }
+//     if (className) {
+//         el.className = className;
+//     }
+//     return el;
+// }
+export function createHtmlElement<K extends keyof HTMLElementTagNameMap>(tag:K, parent?:HTMLElement, className?:string): HTMLElementTagNameMap[K] {
     const el = document.createElement(tag);
     if (parent) {
         parent.appendChild(el);

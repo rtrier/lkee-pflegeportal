@@ -1,8 +1,13 @@
 import * as L from 'leaflet'
-import { Action } from '../../../../treecomponent/src/ts/Action';
+import { EventDispatcher } from 'strongly-typed-events';
 import { Tree } from '../../../../treecomponent/src/ts/Tree';
 import { RadioGroupTreeNode, SelectionMode, SelectionStatus, TreeNode, TreeNodeParam } from '../../../../treecomponent/src/ts/TreeNode';
-import { CategorieLayer, CategorieLayerOptions, Category } from './CategorieLayer';
+import { NodeRenderer } from '../tree/TreeNode';
+import { createHtmlElement } from '../util/HtmlUtil';
+import { CategorieLayer, Category, CategoryMarker, Path } from './CategorieLayer';
+import { MarkerListView } from './MarkerListView';
+import { View } from './ViewControl';
+
 
 
 export class BaseLayerDefinition {
@@ -22,33 +27,57 @@ export class LayerControlOptions implements L.ControlOptions {
     className?:string;
 }
 
+function createLegendItem(data) {
+    if (data.icon) {
+        const lgrndItem = createHtmlElement('div', null, 'legenditem');
+        const img = createHtmlElement('img', lgrndItem);
+        img.src = 'images/'+ data.icon;
+        return lgrndItem;
+    } else {
+        return null;
+    }
+}
+
+const layerRenderer: NodeRenderer = {    
+    render: (node: TreeNode) => {
+        // console.info(`nodeRenderer`, node.data);
+        const layer = node.data;
+        const div = document.createElement("div");
+        if (typeof node.data === 'string') {
+            div.innerHTML = node.data;
+            div.dataset.tooltip = node.data;
+            div.setAttribute("data-tooltip", node.data);
+            div.title = node.data;
+        }
+        else {
+            const txt = node.data['bezeichnung'];
+            if (!txt) {
+                debugger
+            }
+            const span = createHtmlElement('span', div);
+            span.innerHTML = txt;
+            div.setAttribute("data-tooltip", txt);
+            div.title = txt;
+        }
+        div.className = 'tooltip';
+
+        const legendItem = createLegendItem(node.data);            
+        if (legendItem) {
+            div.appendChild(legendItem);
+            legendItem.classList.add('legend-item');                
+        }
+        return div
+    }
+}
 
 export class LayerControl extends L.Control {
 
-
     static catNodeParam:TreeNodeParam = {
         attName2Render:'bezeichnung',
-        selectMode: SelectionMode.MULTI
+        selectMode: SelectionMode.MULTI,
+        nodeRenderer: layerRenderer
     }
 
-    /*
-    baseLayerDefinitions:BaseLayerDefinition[] = [{
-        id: 'topPlusOpen',
-        name: 'TopPlusOpen (Normalausgabe)',
-        url: 'https://sgx.geodatenzentrum.de/wmts_topplus_web_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png',
-        attribution: '© <a href="http://www.bkg.bund.de/" target="_blank">Bundesamt für Kartographie und Geodäsie</a> 2020, <a href="http://sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf" target="_blank">Datenquellen</a>'
-    },{
-        id: 'topPlusOpenGray',
-        name: 'TopPlusOpen (Graustufen)',
-        // url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        url: 'https://sgx.geodatenzentrum.de/wmts_topplus_web_open/tile/1.0.0/web_grau/default/WEBMERCATOR/{z}/{y}/{x}.png',
-        attribution: '© <a href="http://www.bkg.bund.de/" target="_blank">Bundesamt für Kartographie und Geodäsie</a> 2020, <a href="http://sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf" target="_blank">Datenquellen</a>'
-    },{
-        id: 'osm',
-        name: 'OpenStreetMap DE',
-        url: 'https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a> contributors'
-    }];*/
     baseLayerDefinitions:BaseLayerDefinition[];
     baseLayerDefinition:BaseLayerDefinition;
 
@@ -59,6 +88,7 @@ export class LayerControl extends L.Control {
 
     categorieLayers: { [id: string] : CategorieLayer<any, any>; } = {};
     categorieLayerNodes: { [id: string] : TreeNode; } = {};
+    dom: HTMLDivElement;
 
     constructor(options?:LayerControlOptions) {
         super(options);
@@ -71,27 +101,14 @@ export class LayerControl extends L.Control {
         if (options.baseLayer) {
             this.baseLayer = options.baseLayer;
         }
-        // if (options.baseLayers) {
-        //     this.baseLayerDefinitions = options.baseLayers;
-        //     let baseLayerDef:BaseLayerDefinition;
-        //     if (options.baseLayerId) {
-        //         baseLayerDef = this._findBaseLayerDefinition(options.baseLayerId);
-        //     }
-        //     if (!baseLayerDef) {
-        //         baseLayerDef = options.baseLayers[0];
-        //     }
-        //     this.baseLayer = new L.TileLayer(baseLayerDef.url);
-        //     this.baseLayerDefinition = baseLayerDef;
-        // }
         this._createTree();
+       
     }
 
 
-
-
-    nodeChanged(group:string, node:TreeNode, sel:SelectionStatus) {
-        console.info(`nodeChanged ${group} ${node.data.name}, ${SelectionStatus[sel]}`);
-    }
+    // nodeChanged(group:string, node:TreeNode, sel:SelectionStatus) {
+    //     // console.info(`nodeChanged ${group} ${node.data.name}, ${SelectionStatus[sel]}`);
+    // }
 
     baseLayerChanged(node:TreeNode, sel:SelectionStatus) {
         console.info(`baseLayerChanged ${node.data.name}, ${SelectionStatus[sel]}`);
@@ -117,7 +134,9 @@ export class LayerControl extends L.Control {
         if (count>0) {
             const baseLayerNodes:TreeNode[] = [];
             for (let i=0; i<count; i++) {
-                baseLayerNodes.push(new TreeNode(this.baseLayerDefinitions[i], null, null));
+                const baseLayerNode = new TreeNode(this.baseLayerDefinitions[i], null, null);
+                // baseLayerNode.onSelectionChange.subscribe((node, sel) =>this.baseLayerChanged(node,sel));
+                baseLayerNodes.push(baseLayerNode);
                 if (this.baseLayer && this.baseLayerDefinitions[i].layer===this.baseLayer) {
                     this.baseLayerDefinition = this.baseLayerDefinitions[i];
                 }
@@ -130,7 +149,7 @@ export class LayerControl extends L.Control {
         }
         console.info("before setSeled")
         this.tree.selectNode(this.baseLayerDefinition);
-        this.tree.onSelectionChange.subscribe((node, sel) =>this.nodeChanged('tree', node,sel));
+        // rtr this.tree.onSelectionChange.subscribe((node, sel) =>this.nodeChanged('tree', node,sel));
 
         for (const title in this.categorieLayers) {
             this._addCategorieLayerToTree(title, this.categorieLayers[title]);
@@ -141,9 +160,9 @@ export class LayerControl extends L.Control {
         console.info(`_addCategorieLayerToTree ${this.tree}`);
         if (this.tree) {
             const categories = categorieLayer.getCategories();
-            const treeNode = new TreeNode(title);
+            const treeNode = new TreeNode(title, undefined, {expandOnlyOneNode:true});
             this.tree.addNode(treeNode);
-            this.addCategories(treeNode, categories);
+            this.addCategories(treeNode, categories);            
             this.categorieLayerNodes[title] = treeNode;
             // treeNode.onSelectionChange.subscribe((node, status)=>this._categorieSelected(title, node, status));
             treeNode.onSelectionChange.subscribe((node, status)=>this._categorieSelected(title, treeNode, status));
@@ -157,45 +176,22 @@ export class LayerControl extends L.Control {
         }
         
         console.info("addbaseLayer", this.baseLayer);
-        // if (this.baseLayer) {
-        //     map.addLayer(this.baseLayer);
-        // }
+       
         this.map = map;
-        this.map.addEventListener("movestart", (ev)=>{
-            // console.info("movestart");
-        });
-        
-        this.map.addEventListener("moveend", (ev)=>{
-            // console.info("moveend");
-        });
-        const dom = this.tree._render();
+        this.map.addEventListener("movestart", (ev)=>{});
+        this.map.addEventListener("moveend", (ev)=>{});
+        const dom = this.dom = this.tree._render();
         if (this.className) {
             dom.classList.add(this.className);
         }
-            // dom.addEventListener("mousedown", (ev)=>{
-            //     console.info("mousedown");
-            //     ev.stopPropagation();
-            //     return false;
-            // });
-        dom.addEventListener("pointermove", (ev)=>{
+        const fnStopPropagation = (ev:Event)=>{
             ev.stopPropagation();
             return true;
-        });        
-        dom.addEventListener("dragstart", (ev)=>{
-            console.info("dragstart", ev);
-            // ev.stopPropagation();
-            // return false;
-        });
-        dom.addEventListener("drag", (ev)=>{
-            console.info("drag");
-            // ev.stopPropagation();
-            // return false;
-        });        
-        dom.addEventListener("wheel", (ev)=>{
-            // console.info("wheel");
-            ev.stopPropagation();
-            return false;
-        });
+        };
+        dom.addEventListener("pointermove", fnStopPropagation);        
+        dom.addEventListener("dragstart", fnStopPropagation);
+        dom.addEventListener("drag", fnStopPropagation);
+        dom.addEventListener("wheel", fnStopPropagation);
         return dom;
     }
     onRemove(map:L.Map){
@@ -212,6 +208,63 @@ export class LayerControl extends L.Control {
         return undefined;
     }
 
+    selectBaseLaye(baseLayer:BaseLayerDefinition) {
+        console.info("this.setBaseLayer", baseLayer);
+        // this.baseLayerDefinition = baseLayer;
+        this.tree.selectNode(baseLayer);
+    }
+
+
+    getContainer() {
+        return this.dom;
+    }
+
+    findCategorie(title: string, item: Category):TreeNode[] {
+        console.info("findCategorie", item);
+        const node:TreeNode = this.categorieLayerNodes[title];        
+        if (node) {
+            return node.findNode(item.id, 'id');
+        }
+    }
+
+    getItemListView(title: string, item: Category):View {
+        console.info("findItemsOfCategorie", item);
+        const node:TreeNode = this.categorieLayerNodes[title];        
+        if (node) {
+            const nodes = node.findNode(item.id, 'id');
+            if (nodes) {
+                const path = [];
+                for (let i=nodes.length-2; i>=0; i--) {
+                    path.push(nodes[i].data.id)
+                }
+                console.info("path", path);
+                const layer = this.categorieLayers[title];
+                if (layer) {
+                    const markers = layer.getItems(path);                    
+                    return new MarkerListView(undefined, layer, markers);
+                }
+            }
+        }
+    }
+
+    findItemsOfCategorie(title: string, item: Category):CategoryMarker<any>[] {
+        console.info("findItemsOfCategorie", item);
+        const node:TreeNode = this.categorieLayerNodes[title];        
+        if (node) {
+            const nodes = node.findNode(item.id, 'id');
+            if (nodes) {
+                const path = [];
+                for (let i=nodes.length-2; i>=0; i--) {
+                    path.push(nodes[i].data.id)
+                }
+                console.info("path", path);
+                const layer = this.categorieLayers[title];
+                if (layer) {
+                    return layer.getItems(path);
+                }
+            }
+        }
+    }    
 
     showCategorie(title: string, item: any) {
         console.info("showCategorie", item);
@@ -222,18 +275,39 @@ export class LayerControl extends L.Control {
     }
 
     showMarker(title: string, id: any, prop: string) {
+        console.info(`showmarker(${title}, ${id}, ${prop})`)
         const layer = this.categorieLayers[title];
         if (layer) {
-            layer.showMarker(id, prop);
+            const marker = layer.showMarker(id, prop);
         }
-        
     }
 
-    addCategorieLayer(title:string, categorieLayer: CategorieLayer<any, any>) {
+    getItems(title: string, path: Path<any>):CategoryMarker<any>[] {
+        console.info(`getItems(${title}, ${path})`)
+        const layer = this.categorieLayers[title];
+        return layer.getItems(path);
+    }
+
+    // selectMarker(title: string, id: any, prop: string):CategoryMarker<any> {
+    //     console.info(`highlightMarker(${title}, ${id}, ${prop})`)
+    //     const layer = this.categorieLayers[title];
+    //     if (layer) {
+    //         return layer.selectMarker(id, prop);
+    //     }
+    //     return undefined;
+    // }
+
+    addCategorieLayer(title:string, categorieLayer: CategorieLayer<any, any>, options:{showAll?:boolean, expandTree:boolean}) {
         this.categorieLayers[title] = categorieLayer;
         console.info('addCategorieLayer');
         if (this.tree) {
             this._addCategorieLayerToTree(title, categorieLayer);
+            if (options.showAll) {
+                this.tree.selectNode(title);
+            }
+            if (options.expandTree) {
+                this.tree.nodes[0].expand(true);                
+            }
             // const categories = categorieLayer.getCategories();
             // const treeNode = new TreeNode(title);
             // this.tree.addNode(treeNode);
@@ -243,7 +317,7 @@ export class LayerControl extends L.Control {
         }
     }
     private _categorieSelected(layerTitle:string, node: TreeNode, status: SelectionStatus): void {
-        console.info("_categorieSelected", node, status);
+        // console.info("_categorieSelected", node, status);
         const selectedCats = this._findSelected(node.childs);        
         const categoryLayer = this.categorieLayers[layerTitle];
         if (categoryLayer) {
@@ -271,116 +345,12 @@ export class LayerControl extends L.Control {
     private addCategories(base:Tree|TreeNode, categories:Category[]) {
         for (let i=0; i<categories.length; i++) {
             const treeNode = new TreeNode(categories[i], null, LayerControl.catNodeParam);
+            base.addNode(treeNode);
             if (categories[i].childs) {
                 this.addCategories(treeNode, categories[i].childs);
             }
-            base.addNode(treeNode);
+            
         }
     }
 }
 
-/*
-export class LayerManager extends L.Evented {
-
-
-    options:LayerControlOptions = {
-        baseLayers : [{
-			id: 'topPlusOpen',
-			name: 'TopPlusOpen (Normalausgabe)',
-			url: 'https://sgx.geodatenzentrum.de/wmts_topplus_web_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png',
-			attribution: '© <a href="http://www.bkg.bund.de/" target="_blank">Bundesamt für Kartographie und Geodäsie</a> 2020, <a href="http://sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf" target="_blank">Datenquellen</a>'
-		},{
-			id: 'topPlusOpenGray',
-			name: 'TopPlusOpen (Graustufen)',
-			// url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-			url: 'https://sgx.geodatenzentrum.de/wmts_topplus_web_open/tile/1.0.0/web_grau/default/WEBMERCATOR/{z}/{y}/{x}.png',
-			attribution: '© <a href="http://www.bkg.bund.de/" target="_blank">Bundesamt für Kartographie und Geodäsie</a> 2020, <a href="http://sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf" target="_blank">Datenquellen</a>'
-		},{
-			id: 'osm',
-			name: 'OpenStreetMap DE',
-			url: 'https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png',
-			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a> contributors'
-        }],
-        fallbackBaseLayerId:'topPlusOpen'
-    }
-
-    map:L.Map;
-
-    tree:Tree
-    baseLayer: any;
-
-
-    constructor(map:L.Map, options?:LayerControlOptions ) {
-        super();        
-        this.options = {...this.options, ...options};
-        this.tree = new Tree(null, null);
-        // this.layerswitcher.setBaseLayers(this.options.baseLayers);
-
-        // this.layerswitcher.on(LayerswitcherPane.BASELAYER_SELECTION_CHANGEEVENT, this._baseLayerSelected, this);
-        // this.layerswitcher.on(LayerswitcherPane.LAYER_SELECT_EVENT, this._layerSelected, this);
-        // this.layerswitcher.on(LayerswitcherPane.LAYER_UNSELECT_EVENT, this._layerUnselected, this);
-
-        let baseLayerDef = this.options.baseLayer;
-        if (!baseLayerDef && this.options.baseLayerId) {
-            baseLayerDef = this.getBaseLayerDefinition(this.options.baseLayerId);
-        }
-        if (!baseLayerDef) {
-            baseLayerDef = this.options.baseLayers[0];
-        }
-        this.baseLayer = new L.TileLayer(baseLayerDef);
-        
-        map.addLayer(this.baseLayer);
-        this.tree.selectNode(baseLayerDef);
-        
-
-        // map.on("zoomend", this._mapViewChanged, this);
-        // map.on("moveend", this._mapViewChanged, this);
-        this.map = map;
-    }
-
-    getBaseLayerDefinition(baseLayerId:string):BaseLayerDefinition {
-        for (let i=0; i<this.options.baseLayers.length; i++) {
-            if (this.options.baseLayers[i].id.toLowerCase()===baseLayerId.toLowerCase()) {
-                return this.options.baseLayers[i];
-            }
-        }
-        return undefined;
-    }
-
-    // setBaseLayer(layer:BaseLayerDefinition|string) {
-    //     if (layer instanceof BaseLayerDefinition) {
-    //         this.layerswitcher.setSelectedBaseLayer(layer);
-    //     }
-    //     else {
-    //         const baseLayerDef = this.getBaseLayerDefinition(layer);
-    //         if (baseLayerDef) {
-    //             this.layerswitcher.setSelectedBaseLayer(baseLayerDef);
-    //         }
-    //         else {
-    //             throw new Error('BaseLayerDefinition "'+layer+'" not found.');
-    //         }
-    //     }
-    // }
-
-    // _baseLayerSelected(evt:BaseLayerSelectEvent) {
-    //     console.info("baseLayerSelected ", evt);
-    //     if (this.baseLayer) {
-    //         if (this.baseLayer.getId()===evt.baseLayer.id) {
-    //             return;
-    //         }
-    //         this.baseLayer.remove();
-    //         console.info("baseLayer " + this.baseLayer.getId() + " removed.");
-    //     }
-    //     this.baseLayer = new CachedTileLayer(evt.baseLayer, {
-	// 		attribution: evt.baseLayer.attribution
-	// 	}).addTo(this.app.map);
-    // }
-
-    // _layerSelected(evt:LayerSelectEvent) {
-    //     evt.layer.addTo(this.app.map);
-    // }
-    // _layerUnselected(evt:LayerSelectEvent) {
-    //     evt.layer.remove();
-    // }
-
-}*/

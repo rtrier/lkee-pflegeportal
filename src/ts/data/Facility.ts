@@ -1,5 +1,5 @@
-import { Content } from "leaflet";
-import { CategorieSelector, CategoryMarker, Path, PopupCreator } from "../maputil/CategorieLayer";
+import { Icon } from "leaflet";
+import { CategorieSelector, Category, CategoryMarker, createIcon, createSelectedIcon, IconFactory, Path, PopupCreator } from "../maputil/CategorieLayer";
 import { createHtmlElement } from "../util/HtmlUtil";
 
 export type FacilityOffer = {
@@ -16,24 +16,44 @@ export type Facility = {
 }
 
 function createEmailLink(email:string):HTMLElement {
+    const div = document.createElement('span');    
     const anchor = document.createElement('a');
     anchor.href="mailto:"+email;
-    anchor.innerText = email;
-    return anchor;
+    anchor.innerHTML = email;
+    createHtmlElement('i', div, 'far fa-envelope-square');    
+    div.appendChild(anchor);
+    return div;
+    // '<i class="far fa-at"></i>&nbsp;'+
+    // return anchor;
 }
 function createWebLink(link:string):HTMLElement {
+    const div = document.createElement('span');    
     const anchor = document.createElement('a');
+    // const anchor = document.createElement('a');
     anchor.href=link;
-    anchor.innerText = link;
-    return anchor;
+    anchor.innerHTML = link;
+    // anchor.innerHTML = '<i class="far fa-external-link-square-alt"></i>&nbsp;'+link;
+    createHtmlElement('i', div, 'far fa-external-link-square-alt');    
+    div.appendChild(anchor);
+    return div;
 }
 
 function createTelLink(telnr:string):HTMLElement {
+    const div = document.createElement('span');    
     const anchor = document.createElement('a');
     const tel = telnr.replace(/[^\d^\+]/g, '');
     anchor.href='tel:'+tel;
-    anchor.innerText = telnr;
-    return anchor;
+    anchor.innerHTML = telnr;    
+    createHtmlElement('i', div, 'far fa-phone-square');    
+    div.appendChild(anchor);
+    // div.aa.innerHTML = '<i class="far fa-phone-square"></i>&nbsp;'+telnr;
+    return div;
+}
+
+function createElement(tag:string, txt:string):HTMLElement {
+    const span = document.createElement(tag);
+    span.innerText = txt;
+    return span;
 }
 
 function createSpan(txt:string):HTMLElement {
@@ -76,6 +96,67 @@ export class FacilitySelector implements CategorieSelector<Facility, string> {
 
 }
 
+export class FacilityIconFactory implements IconFactory<Facility> {
+
+    static icon = createIcon(0xf024);
+	static selectedIcon = createSelectedIcon(0xf024);
+
+    iconMap: { [id: string] : {icon:L.Icon, selectedIcon:L.Icon}; } = {};
+
+    categories: Category[];
+
+    createIcons(categories:Category[]) {
+        this.categories = categories;
+        for (let i=0, count=categories.length; i<count; i++) {
+            const cat = categories[i];
+            if (cat.icon) {
+                const icon = new Icon({
+                    iconUrl: 'images/' + cat.icon,
+                    iconSize: [30, 30],
+                    className: 'icon-standard'
+                });
+                const selIcon = new Icon({
+                    iconUrl: 'images/' + cat.icon,
+                    iconSize: [40, 40],
+                    className: 'icon-selected'
+                });
+                const iconSet = {
+                    icon: icon,
+                    selectedIcon: selIcon
+                };
+                this.iconMap[cat.id] = iconSet;
+            } else {
+                this.iconMap[cat.id] = {
+                    icon:FacilityIconFactory.icon, 
+                    selectedIcon:FacilityIconFactory.selectedIcon
+                };
+            }
+        }
+    }
+
+    getIconsForData(data:Facility):{icon:L.Icon, selectedIcon:L.Icon} {
+
+        const cats = findMainCategories(this.categories, data);
+
+        if (cats && cats.length>0) {
+            const cat = cats[0];
+            let iconSet = this.iconMap[cat.id];
+            if (!iconSet) {
+                console.error("no Iconset", cats);
+            }
+            return iconSet;
+        } else {
+            return {
+                icon:FacilityIconFactory.icon, 
+                selectedIcon:FacilityIconFactory.selectedIcon
+            };
+        }
+    }
+}
+
+
+
+
 export class FacilityPopupFactory implements PopupCreator<Facility> {
 
     static ATT_Facilities = [
@@ -88,7 +169,7 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
     static ATT_de = {
         aktenzeichen: "Aktenzeichen",
         ansprechpartner: "Ansprechpartner",
-        art_angebot_beratung: "art_angebot_beratung",
+        art_angebot_beratung: "Art des Angebotes",
         e_mail: "E-Mail",
         einrichtungsname: "Einrichtungsname",
         fachgebiet_richtung: "Fachgebiet/-richtung",
@@ -166,36 +247,65 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
         "Personalanzahl"
     ];
 
-    build(categories:[], marker: CategoryMarker<Facility>): Content {
-        console.info("FacilityPopupFactory.build");
+    renderListItem(categories:Category[], marker:CategoryMarker<Facility>):HTMLElement {
+        // console.info("FacilityPopupFactory.renderListItem");
+        const facility = marker.data;
+        const divFacility = document.createElement("div");
+        divFacility.appendChild(getHeader(facility));
+        divFacility.appendChild(getAdress(facility));
+        divFacility.appendChild(getContact(facility));
+        const rest = getRest(facility);
+        if (rest) {
+            divFacility.appendChild(rest);
+        }       
+        return divFacility;
+    };    
+
+    renderDataView(categories:[], marker: CategoryMarker<Facility>): HTMLElement {
+        // console.info("FacilityPopupFactory.renderDataView");
         const facility = marker.data;
 
         const div = document.createElement("div");
-        div.className = 'popup-facility';
-        div.appendChild(getHeader(facility));
-        div.appendChild(getAdress(facility));
-        div.appendChild(getContact(facility));
-        
-        console.info("FacilityPopupFactory.build", facility);
-        // const tbl = createHtmlElement("table", div, "popup-facility");        
-        const tbl = createHtmlElement("table", div);        
-        FacilityPopupFactory.ATT_Facilities.forEach((attName)=>{
-            const value = facility[attName];            
-            if (value) {
-                createRow(attName, value, tbl);
-            }
-        });
+        div.className = 'facility';
+
+        const divFacility = document.createElement("div");
+        divFacility.appendChild(getHeader(facility));
+        divFacility.appendChild(getAdress(facility));
+        divFacility.appendChild(getContact(facility));
+        const rest = getRest(facility);
+        if (rest) {
+            divFacility.appendChild(rest);
+        }
+        div.appendChild(divFacility);
+
+        // console.info("FacilityPopupFactory.build", facility);
+        // // const tbl = createHtmlElement("table", div, "popup-facility");        
+        // const tbl = createHtmlElement("table", div);        
+        // FacilityPopupFactory.ATT_Facilities.forEach((attName)=>{
+        //     const value = facility[attName];            
+        //     if (value) {
+        //         createRow(attName, value, tbl);
+        //     }
+        // });
         if (facility.facilityOffers) {
             for (let i=0; i<facility.facilityOffers.length; i++) {
                 // const tbl = createHtmlElement("table", div, "popup-facilityoffer");
-                const tbl = createHtmlElement("table", div);
                 const fOffer = facility.facilityOffers[i];
-                FacilityPopupFactory.ATT_FacilitiesOffer.forEach((attName)=>{
-                    const value = fOffer[attName];                
-                    if (value) {
-                        createRow(attName, value, tbl);
-                    }
+                // const cat = findCategory(categories, fOffer);
+                // const tbl = createHtmlElement("table", div);                
+                // // createRow("Kategorie:", cat.bezeichnung, tbl);
+                // FacilityPopupFactory.ATT_FacilitiesOffer.forEach((attName)=>{
+                //     const value = fOffer[attName];                
+                //     if (value) {
+                //         createRow(attName, value, tbl);
+                //     }
+                // });
+                const elements = getOffer(categories, fOffer);
+                const divO = document.createElement('div');
+                elements.forEach(element => {
+                    divO.appendChild(element);
                 });
+                div.appendChild(divO);
             }
         }
         return div;
@@ -203,10 +313,128 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
 
 }
 
+function _findCategory(categories:Category[], katgrp:string, id:number):Category {
+    if (categories && categories.length) {
+        for (let i=0, count=categories.length; i<count; i++) {        
+            const s_id = katgrp+id;        
+            if (categories[i].id===s_id) {
+                return categories[i];
+            }
+        }
+    }
+    return undefined;
+}
+
+
+function findMainCategories(categories:Category[], facility: Facility):Category[] {
+    const result:Category[] = [];
+    const offers = facility.facilityOffers;
+    if (offers) {
+        for (let i=0; i<offers.length; i++) {
+            const cat01 = _findCategory(categories, 'kat01_', offers[i].kat1_id);
+            if (cat01) {
+                result.push(cat01);
+            }
+        }
+    }
+    return result;
+}
+
+function findCategory(categories:Category[], facilityOffer: FacilityOffer):Category {
+    const kat01 = facilityOffer.kat1_id;
+    const kat02 = facilityOffer.kat2_id;
+    const kat03 = facilityOffer.kat3_id;    
+    const cat01 = _findCategory(categories, 'kat01_', kat01);
+    if (cat01 && kat02) {
+        const cat02 = _findCategory(cat01.childs, 'kat02_', kat02);
+        if (cat02 && kat03) {
+            const cat03 = _findCategory(cat02.childs, 'kat03_', kat03);
+            return cat03;
+        } else {
+            return cat02;
+        }
+    } else {
+        return cat01;
+    }
+}
+
+function getAnrede(offer:FacilityOffer):string {
+    let s:string;
+    if (offer["name"]) {
+        s = offer["name"];
+        if (offer["titel"]) {
+            s = offer["titel"] + " " + s;
+        }
+        if (offer["geschlecht"]) {
+            s = offer["geschlecht"] + " " + s;
+        }
+    }
+    if (offer["ansprechpartner"]) {
+        if (s) {
+            s = s + '<br>' + offer["ansprechpartner"];
+        } else {
+            s = offer["ansprechpartner"];
+        }
+    }
+    return s;
+}
+
+function getOffer(categories:Category[], offer:FacilityOffer):HTMLElement[] {
+    const elems:HTMLElement[] = [];
+
+    const cat = findCategory(categories, offer);
+    if (cat) {
+        elems.push( createElement("h3", cat.bezeichnung) );
+    }
+
+    const anrede = getAnrede(offer);
+    if (anrede) {
+        const p = document.createElement("h4");
+        p.innerHTML = anrede;
+        elems.push(p);
+    }
+
+    
+    const valueMail = offer["e_mail"];
+    if (valueMail) {
+        elems.push(createEmailLink(valueMail));
+    }
+
+    const att = ["telefon", "telefon_alternativ", "handy", "handy_alternativ"];
+    for (let i=0, count=att.length; i<count; i++) {
+        const valuePhone = offer[att[i]];
+        if (valuePhone) {
+            elems.push(createTelLink(valuePhone));
+        }
+    }    
+    const valueHomepage = offer["homepage"];
+    if (valueHomepage) {
+        elems.push(createWebLink(valueHomepage));
+    }
+
+    const att2 = ["art_angebot_beratung", "fachgebiet_richtung", "methode", "einrichtungsname", "schwerpunkte",
+    "weitere_informationen", "aktenzeichen", "personen_gesamt", "schulart_schluessel", "schultraeger",
+    "oeffnungszeiten", "kapazitaet", "personalanzahl"];
+
+    const tbl = document.createElement('table');
+    att2.forEach((attName)=>{
+        const value = offer[attName];                
+        if (value) {
+            createRow(attName, value, tbl);
+        }
+    });   
+    if (tbl.rows && tbl.rows.length>0) {
+        elems.push(tbl);
+    }
+
+    return elems;
+}
+
+
 function getHeader(facility:Facility):HTMLElement {
     const traeger_institution = facility['traeger_institution'];
     const einrichtungsname = facility['einrichtungsname'];
-    const p = document.createElement("p");    
+    const p = document.createElement("h1");
     let s:string;
     if (traeger_institution) {
         s = traeger_institution;
@@ -227,10 +455,7 @@ function getContact(facility:Facility):HTMLElement {
     if (valueMail) {
         rows.push(createEmailLink(valueMail));
     }
-    const valueHomepage = facility["homepage"];
-    if (valueHomepage) {
-        rows.push(createWebLink(valueHomepage));
-    }
+
 
     const att = ["telefon", "telefon_alternativ", "handy", "handy_alternativ"];
     for (let i=0, count=att.length; i<count; i++) {
@@ -239,14 +464,43 @@ function getContact(facility:Facility):HTMLElement {
             rows.push(createTelLink(valuePhone));
         }
     }
+    const valueHomepage = facility["homepage"];
+    if (valueHomepage) {
+        rows.push(createWebLink(valueHomepage));
+    }
+
     const p = document.createElement("p");
     for (let i=0, count=rows.length; i<count; i++) {
         if (i>0) {p.appendChild(document.createElement('br'))};
         p.appendChild(rows[i]);
     }
+
+
     return p;
 }
 
+function getRest(facility:Facility) {
+    const weitere_informationen = facility['weitere_informationen'];
+    const art_angebot_beratung = facility['art_angebot_beratung'];
+    const p = document.createElement("p");
+    let s:string;
+    if (weitere_informationen) {
+        s = weitere_informationen;
+        if (art_angebot_beratung) {
+            s += '<br>'+"Art: "+art_angebot_beratung;
+        }        
+    } else {
+        if (art_angebot_beratung) {
+            s = art_angebot_beratung;
+        }
+    }
+    if (s) {
+        p.innerHTML = s;
+        return p;
+    } else {
+        return undefined;
+    }
+}
 
 function getKategories(facility:Facility):any[] {
     const offers = facility.facilityOffers;
@@ -288,7 +542,14 @@ function getAdress(facility:Facility):HTMLElement {
             str += " "+hausnummer;
         }        
     }
-    p.innerHTML = plzOrt+'<br>'+str;
+
+    if (plzOrt) {        
+        let txt = plzOrt;
+        if (str) {
+            txt += '<br>'+str;
+        }
+        p.innerHTML = txt;
+    }
     return p;
 }
 
@@ -296,7 +557,7 @@ function createRow(attName:string, value:any, parent:HTMLElement):HTMLTableRowEl
     const title = FacilityPopupFactory.ATT_de[attName];
     const row = document.createElement('tr');
     const c1 = document.createElement('td');
-    c1.innerText = title;
+    c1.innerText = title || attName;
     const c2 = document.createElement('td');
     if (attName==='e_mail') {
         c2.appendChild(createEmailLink(value))

@@ -2,22 +2,38 @@ require('leaflet');
 require('@glartek/leaflet.markercluster');
 
 import * as L from 'leaflet';
-// import {MarkerClusterGroup} from "@glartek/leaflet.markercluster";
+import { MarkerView } from './MarkerListView';
+import { MenuControl } from './MenuControl';
+import { View } from './ViewControl';
 
-function createIcon(code:number):L.Icon {
+export interface CategoryMarkerOptions<T extends L.LatLngExpression> extends L.MarkerOptions {
+    selectIcon?: L.Icon;
+    standardIcon?: L.Icon;
+    iconFactory?: IconFactory<T>;
+}
+
+export function createIcon(code:number):L.Icon {
     return <L.Icon>L.divIcon(
         {html: '<i class="afas">'+String.fromCharCode(code)+'</i>', 
         iconSize: new L.Point(20, 20),
-        iconAnchor: new L.Point(0,0),
+        iconAnchor: new L.Point(10,10),
         className: 'mapDivIcon'}
     );
 }
-
+export function createSelectedIcon(code:number):L.Icon {
+    return <L.Icon>L.divIcon(
+        {html: '<i class="afas">'+String.fromCharCode(code)+'</i>', 
+        iconSize: new L.Point(40, 40),
+        iconAnchor: new L.Point(20,20),
+        className: 'mapDivIconHighligted'}
+    );
+}												 
 export interface Category {
-    id: number,
-    parentId: number,
+    id: any,
+    parentId: any,
     bezeichnung: string,
-    childs: Category[]
+    childs: Category[],
+    icon?: string
 }
 
 
@@ -26,7 +42,10 @@ export interface CategorieLayerOptions<T extends L.LatLngExpression, N> extends 
     url:string,
     selector: CategorieSelector<T, N>,
     popupFactory: PopupCreator<T>;
+    iconFactory?: IconFactory<T>;
 }
+
+
 
 export type Path<T> = T[];
 
@@ -35,40 +54,52 @@ export interface CategorieSelector<T, N> {
 }
 
 export interface PopupCreator<T extends L.LatLngExpression> {
-    build(categories:[], marker:CategoryMarker<T>):L.Content;
+    // build(categories:[], marker:CategoryMarker<T>):L.Content;
+	renderDataView(categories:Category[], marker:CategoryMarker<T>):HTMLElement;
+    renderListItem(categories:Category[], marker:CategoryMarker<T>):HTMLElement;
 }
 
-/*
-export class CategoryPopup<T extends L.LatLngExpression> extends L.Popup {
-    marker: CategoryMarker<T>;
-
-    constructor(marker:CategoryMarker<T>, options:L.PopupOptions) {
-        super(options);
-    }
-
+export interface IconFactory<T extends L.LatLngExpression> {  
+    createIcons(categories:Category[]):void;  
+	getIconsForData(data:T):{icon:L.Icon, selectedIcon:L.Icon};
 }
-*/
+
 export class CategoryMarker<T extends L.LatLngExpression> extends L.Marker {
     visible:boolean=false;
 
     static icon = createIcon(0xf024);
+	static selectedIcon = createSelectedIcon(0xf024);												 
     parentLayer: CategorieLayer<T, any>;
     data: T;
+	private _clickClosure: (ev: any) => void;										 
+	selected = false;				 
 
-    constructor(parentLayer:CategorieLayer<T, any>, data:T, icon?:L.Icon) {
+    constructor(parentLayer:CategorieLayer<T, any>, data:T, options:CategoryMarkerOptions<T>) {
         super(data);
         this.data = data;
-        this.parentLayer = parentLayer;
-        if (!icon) {
-            icon = CategoryMarker.icon;
+        this.parentLayer = parentLayer;      
+        
+        if (options.iconFactory) {
+            const iconSet = options.iconFactory.getIconsForData(data);
+            this.options['standardIcon'] = iconSet.icon;
+            this.options['selectIcon'] = iconSet.selectedIcon;
+            this.setIcon(iconSet.icon);
+        } else {
+            if (!options || !options.icon) {
+                this.options['standardIcon'] = CategoryMarker.icon;
+                this.setIcon(CategoryMarker.icon);
+            }
+            if (!options || !options.selectIcon) {
+                this.options['selectIcon'] = CategoryMarker.selectedIcon;
+            }
         }
-        this.setIcon(icon);
     }
 
     onAdd(map: L.Map):this {     
-        console.info("onAdd", this.data);
+        // console.info("onAdd", this.data);
         // this.bindPopup(layer=>this.parentLayer.popupFactory.build(<any>layer));
-        this.on('click', (ev)=>this.parentLayer.mapItemClicked(this, ev));
+        this._clickClosure = (ev)=>this.parentLayer.mapItemClicked(this, ev);
+        this.on('click', this._clickClosure);   										
         // this.visible=true;
         return super.onAdd(map);
     }
@@ -76,9 +107,11 @@ export class CategoryMarker<T extends L.LatLngExpression> extends L.Marker {
     
 
     onRemove(map: L.Map): this {
-        console.info("onRemove", this.data);
+        // console.info("onRemove", this.data);
         this.unbindPopup();
-        // this.visible=false;
+        if (this._clickClosure) {
+            this.off('click', this._clickClosure);
+        }
         return super.onRemove(map);
     }
 
@@ -89,22 +122,19 @@ export class CategoryMarker<T extends L.LatLngExpression> extends L.Marker {
     isVisible():boolean {
         return this.visible;
     }
-
-
-    // showDetails(event: Event) {
-    //     try {
-    //         this.closePopup();
-    //         this.poiLayer.showDetails(this.poi);
-    //     }
-    //     catch (ex) {
-    //         console.error(ex)
-    //     }
-    // }
+    
+    highLight(highlight: boolean) {
+        console.info('CategoryMarker.highlight', this.data['id'], highlight);
+        this.selected = highlight;
+        if (highlight) {
+            this.setIcon((<CategoryMarkerOptions<T>>this.options).selectIcon);
+        } else {
+            this.setIcon((<CategoryMarkerOptions<T>>this.options).standardIcon);
+        } 
+    }									  
 
 }
 
-
-// export class CategorieLayer<T extends L.LatLngExpression> extends L.LayerGroup {
 export class CategorieLayer<T extends L.LatLngExpression, N> extends L.MarkerClusterGroup {
 
 
@@ -118,8 +148,13 @@ export class CategorieLayer<T extends L.LatLngExpression, N> extends L.MarkerClu
     data: T;
     selector: CategorieSelector<T, N>;
     popupFactory: PopupCreator<T>;
+    iconFactory: IconFactory<T>
 
+	markerMap:{ [id: number] : CategoryMarker<T>; } = {};													 
     markers:CategoryMarker<T>[] = []; 
+	selectedMarker: CategoryMarker<T>;
+    foundMarkers: CategoryMarker<T>[]; 
+    map: L.Map;								  
 
     constructor(options?:CategorieLayerOptions<T, N>) {
         super(options);
@@ -127,6 +162,7 @@ export class CategorieLayer<T extends L.LatLngExpression, N> extends L.MarkerClu
         this.url = options.url;
         this.selector = options.selector;
         this.popupFactory = options.popupFactory;
+        this.iconFactory = options.iconFactory;
     }
 
     loadCategories() {
@@ -135,6 +171,9 @@ export class CategorieLayer<T extends L.LatLngExpression, N> extends L.MarkerClu
                 this.categories = data;
                 this.fire("CategoriesLoaded");
                 this._loadData();
+                if (this.iconFactory) {
+                    this.iconFactory.createIcons(data);
+                }
             })
         });
     }
@@ -143,13 +182,21 @@ export class CategorieLayer<T extends L.LatLngExpression, N> extends L.MarkerClu
             response.json().then( data => {
                 this.data = data;
                 for (let i=0; i<data.length; i++) {
-                    this.markers.push(new CategoryMarker(this, data[i]));
+                    // TODO
+				    const marker = new CategoryMarker(this, data[i], {iconFactory:this.iconFactory});
+                    this.markers.push(marker);
+                    this.markerMap[data[i].id] = marker;										
                 }
                 this._update();
             })
         });
     }
 
+    onAdd(map:L.Map):this {
+        super.onAdd(map);
+        this.map = map;
+        return this;
+    }						   
     private _findMarker(value:any, prop:string) {
         const markers = this.markers;        
         for (let i=0, count=markers.length; i<count; i++) {
@@ -160,26 +207,199 @@ export class CategorieLayer<T extends L.LatLngExpression, N> extends L.MarkerClu
         }
     }
 
+    async findMarkers(att:string, value:any):Promise<CategoryMarker<T>[]> {
+        const response = await window.fetch(this.url+"/search?"+att+"="+value);
+        const data:number[] = await response.json();
+        const result:CategoryMarker<T>[] = [];
+        for (let i=0; i<data.length; i++) {
+            const marker = this.markerMap[data[i]];
+            if (marker) {
+                result.push(marker);
+                if (!marker.isVisible()) {
+                    if (!this.foundMarkers) {
+                        this.foundMarkers = [];
+                    }
+                    this.foundMarkers.push(marker);
+                    this.addLayer(marker);
+                }
+            }
+        }
+        return result;
+    }
+
+    removeSearchResults() {
+        console.info("removeSearchResults");
+        if (this.foundMarkers) {
+            this.foundMarkers.forEach(item=>{this.removeLayer(item)});
+            this.foundMarkers = undefined;
+        }
+    }
     mapItemClicked(marker: CategoryMarker<T>, ev: L.LeafletEvent): void {
         console.info("mapItemClicked", marker, ev);
+		if (marker.selected) {
+            MenuControl.DISPATCHER.onItemOnMapUnselection.dispatch(this, marker);
+            // this.selectedMarker = undefined;
+        } else {
+            // if (this.selectedMarker) {
+            //     MenuControl.DISPATCHER.onItemOnMapSelection.dispatch(this, undefined);
+            //     this.selectedMarker = undefined;
+            // }
+            MenuControl.DISPATCHER.onItemOnMapSelection.dispatch(this, marker);
+            this.selectedMarker = marker;
+        }																   
     }    
+    // mapItemClicked(marker: CategoryMarker<T>, ev: L.LeafletEvent): void {
+    //     console.info("mapItemClicked", marker.data['id'], ev); 
+    //     const unselect = marker===this.selectedMarker;
+    //     if (this.selectedMarker) {
+    //         //rtr this._unselectMarker(this.selectedMarker);
+    //         MenuControl.DISPATCHER.onItemOnMapSelection.dispatch(this, undefined);
+    //         this.selectedMarker = undefined;
+    //     }
+    //     if (!unselect) {
+    //         //rtr this._selectMarker(marker);
+    //         this.selectedMarker = marker;
+    //         MenuControl.DISPATCHER.onItemOnMapSelection.dispatch(this, marker);
+    //     }
+        
+    // }     
 
-    showMarker(value:any, prop:string) {
+
+    highlightMarker(marker:CategoryMarker<T>, highlight:boolean) {
+        console.info(`highlightMarker ${marker.data['id']} ${highlight}`)
+        
+        if (highlight) {
+            this.removeLayer(marker);            
+            console.info('marker.options.pane='+marker.options.pane);
+            marker.options["oldPane"] = marker.options.pane;
+            marker.options.pane = 'highlightPane';
+            this._map.addLayer(marker);
+            marker.highLight(highlight);
+        } else {            
+            this._map.removeLayer(marker);
+            const oldPane = marker.options["oldPane"];
+            if (oldPane) {
+                marker.options.pane = oldPane;
+            }
+            this.addLayer(marker);
+            marker.highLight(highlight);
+        }
+    }
+
+    // highlightMarkerOld(marker: CategoryMarker<T>) {
+    //     if (this.selectedMarker) {
+    //         this._map.removeLayer(this.selectedMarker);
+    //         this.addLayer(this.selectedMarker);
+    //         this.selectedMarker = null;
+    //         this.fire("itemunselected", {marker:marker});
+    //     }
+    //     if (marker) {
+    //         // this.selectedMarker = new CategoryMarker<T>(this, marker.data);            
+    //         this.selectedMarker = marker;
+    //         this.removeLayer(marker);
+    //         this._map.addLayer(marker);
+    //         // this._map.addLayer(this.selectedMarker);
+    //         this.selectedMarker.highLight(true);
+    //         if (this._map.getZoom()<12) {
+    //             this._map.setZoomAround(marker.getLatLng(), 12);
+    //         }
+    //         else {
+    //             this._map.panTo(marker.getLatLng());
+    //         }
+    //         // this.fire("itemselected", {marker:marker});
+    //     }        
+    //     return marker;
+    // }
+
+    // _selectMarker(marker: CategoryMarker<T>) {
+    //     this.selectedMarker = new CategoryMarker<T>(this, marker.data);            
+    //     this._map.addLayer(this.selectedMarker);
+    //     this.selectedMarker.highLight(true);
+    //     if (this._map.getZoom()<12) {
+    //         this._map.setZoomAround(marker.getLatLng(), 12);
+    //     } else {
+    //         this._map.panTo(marker.getLatLng());
+    //     }
+    //     this.fire("itemselected", {marker:marker});
+    // }
+
+    // unselectMarker(marker: CategoryMarker<T>) {
+    //     marker.remove();
+    //     this.selectedMarker = undefined;
+    //     this.fire("itemunselected", {marker:marker});
+    // }
+
+    // _unselectMarker(marker: CategoryMarker<T>) {
+    //     marker.remove();
+    //     this.fire("itemunselected", {marker:marker});
+    // }
+
+    findMarker(value:any, prop:string):CategoryMarker<T> {
+        return this._findMarker(value, prop);
+    }
+
+    // selectMarker(value:any, prop:string):CategoryMarker<T> {
+    //     console.info("selectMarker");
+    //     const marker = this._findMarker(value, prop);
+    //     if (this.selectedMarker) {
+    //         this.selectedMarker.remove();
+    //         this.selectedMarker = null;
+    //         this.fire("itemunselected", {marker:marker});
+    //     }
+    //     if (marker) {
+    //         this.selectedMarker = new CategoryMarker<T>(this, marker.data);            
+    //         this._map.addLayer(this.selectedMarker);
+    //         this.selectedMarker.highLight(true);
+    //         if (this._map.getZoom()<12) {
+    //             this._map.setZoomAround(marker.getLatLng(), 12);
+    //         } else {
+    //             this._map.panTo(marker.getLatLng());
+    //         }
+    //         this.fire("itemselected", {marker:marker});
+    //     }        
+    //     return marker;
+    // }																			
+
+    showMarker(value:any, prop:string):CategoryMarker<T> {
+        console.info("showMarker");
         const marker = this._findMarker(value, prop);
         if (marker) {
             if (!marker.isVisible()) {
                 this.addLayer(marker);
             }
-            this._map.setZoomAround(marker.getLatLng(), 10);
+            if (this._map.getZoom()<12) {
+                this._map.setZoomAround(marker.getLatLng(), 12);
+            } else {
+                this._map.panTo(marker.getLatLng());
+            }
         }
+        return marker;
     }
-
-    _update() {
+    renderData(marker:CategoryMarker<T>):View {
+        return new MarkerView(this, marker);
+        // return this.popupFactory.renderDataView(this.categories, marker);
+    }
+    
+    getItems(path:Path<any>): CategoryMarker<any>[] {
         console.info("_update");
         const selector = this.selector;
         const markers = this.markers;
 
+        const results:CategoryMarker<T>[] = [];
+        for (let i=0, count=markers.length; i<count; i++) {
+            const marker = markers[i];
+            
+            if (selector.isOfCategory(marker.data, [path])) {
+                results.push(marker);
+            }
+        }
+        return results;
+    }					   
 
+    _update() {
+        // console.info("_update");
+        const selector = this.selector;
+        const markers = this.markers;
 
         if (this.selectedCategories) {
 

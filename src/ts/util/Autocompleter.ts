@@ -24,6 +24,7 @@ export interface AutocompleteSettings<T extends AutocompleteItem> {
     minLength?: number;
     emptyMsg?: string;
     onSelect: (item: T, input: HTMLInputElement) => void;
+	onSearchStart: (input: HTMLInputElement) => void;
     initialItems?:T[];
     /**
      * Show autocomplete on focus event. Focus event will ignore the `minLength` property and will always call `fetch`.
@@ -450,9 +451,10 @@ export default function autocomplete<T extends AutocompleteItem>(input: HTMLInpu
         const savedKeypressCounter = ++keypressCounter;
 
         const val = input.value;
-        if (val.length >= minLen || trigger === EventTrigger.Focus) {
+        // if (val.length >= minLen || trigger === EventTrigger.Focus) {
+        if (val.length >= minLen) {
             clearDebounceTimer();
-            debounceTimer = window.setTimeout(function(): void {
+            debounceTimer = window.setTimeout(function(): void {                
                 settings.fetch(val, function(elements: T[] | false): void {
                     if (keypressCounter === savedKeypressCounter && elements) {
                         items = elements;

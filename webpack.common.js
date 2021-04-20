@@ -41,7 +41,8 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const TerserPlugin = require('terser-webpack-plugin');
 
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+// const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
 const HtmlMinimizerPlugin = require('html-minimizer-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
@@ -116,6 +117,17 @@ module.exports = {
   resolve: {
     extensions: ['.tsx', '.ts', '.js']
   },
+
+  optimization: {
+    minimizer: [
+      new TerserPlugin(), 
+      // new OptimizeCSSAssetsPlugin({}),
+      new CssMinimizerPlugin(),
+      new HtmlMinimizerPlugin({minimizerOptions: {
+        collapseWhitespace: false,
+      }})
+    ]
+  }
 
   // optimization: {
   //   minimizer: [
