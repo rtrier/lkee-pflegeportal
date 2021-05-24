@@ -247,9 +247,28 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
         "Personalanzahl"
     ];
 
-    renderListItem(categories:Category[], marker:CategoryMarker<Facility>):HTMLElement {
+
+    getTitle(categories:Category[], facility:Facility):string {
+        const traeger_institution = facility['traeger_institution'];
+        const einrichtungsname:string = facility['einrichtungsname'];
+        const p = document.createElement("h1");
+        let s:string = '';
+        if (traeger_institution) {
+            s = traeger_institution;
+            if (einrichtungsname) {
+                s += '\n'+einrichtungsname.trim();
+            }        
+        } else {
+            s = einrichtungsname;
+        }
+        return s;
+    }    
+
+
+    renderListItem(categories:Category[], marker:CategoryMarker<Facility>|Facility):HTMLElement {
         // console.info("FacilityPopupFactory.renderListItem");
-        const facility = marker.data;
+        const facility = (marker instanceof CategoryMarker) ? marker.data : marker;
+        // const facility = marker.data;
         const divFacility = document.createElement("div");
         divFacility.appendChild(getHeader(facility));
         divFacility.appendChild(getAdress(facility));
@@ -261,9 +280,9 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
         return divFacility;
     };    
 
-    renderDataView(categories:[], marker: CategoryMarker<Facility>): HTMLElement {
+    renderDataView(categories:Array<any>, marker: CategoryMarker<Facility>|Facility): HTMLElement {
         // console.info("FacilityPopupFactory.renderDataView");
-        const facility = marker.data;
+        const facility = (marker instanceof CategoryMarker) ? marker.data : marker;
 
         const div = document.createElement("div");
         div.className = 'facility';
@@ -435,13 +454,13 @@ function getHeader(facility:Facility):HTMLElement {
     const traeger_institution = facility['traeger_institution'];
     const einrichtungsname = facility['einrichtungsname'];
     const p = document.createElement("h1");
-    let s:string;
+    let s:string = '';
     if (traeger_institution) {
         s = traeger_institution;
         if (einrichtungsname) {
             s += '<br>'+einrichtungsname;
         }        
-    } else {
+    } else if (einrichtungsname) {
         s = einrichtungsname;
     }
     p.innerHTML = s;
