@@ -104,6 +104,7 @@ html, body {
     flex-direction: column;
     overflow: hidden;
     flex-shrink: 0;
+    height: 100%;
 }
 
 .mapctrl-top {
@@ -119,17 +120,6 @@ html, body {
     flex-grow: 1;
 }
 
-.mapctrlOld-content {
-    display:none;
-    background-color: white;
-}
-.mapctrlOld-content.visible {
-    display:flex;
-    flex-direction: column;
-    overflow: hidden;    
-    margin-top:5px;
-    border: 2px solid #afafaf;
-}
 .mapctrl-content {
     background-color: white;
     display:flex;
@@ -153,6 +143,7 @@ html, body {
 	border: 2px solid rgb(175, 175, 175);
 	width: calc(2.7rem + 4px);
     height: calc(2.7rem + 4px);
+    position: relative;
 } 
 
 .menu-button:hover {
@@ -162,7 +153,13 @@ html, body {
 .viewctrl-nav>span {
     font-size:20px;
 }
-/* back close bttn */.back, .close {
+
+.text_view {
+    padding: 2rem;
+    font-size: 2rem;
+}
+
+.back, .close {
     background-color: #65b32c;
     text-align: center;
     vertical-align: middle;
@@ -174,24 +171,34 @@ html, body {
     padding: 2px;
     display: inline-block;
     margin: 2px;
-    width: 1em;
+    /* rtr width: 1em; */
+    min-width: 1em;
     height: 1em;
     font-size: 1em;
     border: 2px solid #afafaf;
 	box-sizing: content-box;
 }
+.back {
+    padding-bottom: 3px;
+    padding-left: 0.4rem;
+}
 .close:hover, .back:hover {
   opacity: 1;
   background-color: #5ba128;
 }
+.back:before {
+    content: "zurück ";
+    vertical-align: text-top;
+}
 .back:after {
 	content: "\f100";
+    vertical-align: middle;
 }
 .close::after {
 	content: "\f00d";
 }
 
-
+/*
 .closed>.menu-button>div {
 	height: 3px;
 	top: calc(50% - 3px);
@@ -214,6 +221,30 @@ html, body {
 .closed>.menu-button>div:after {
 	top: 8px;
 }
+*/
+
+.closed > .menu-button > div {
+    height: 0.3em;
+    top: calc(50% - 0.15em);
+    width: 100%;
+    position: relative;
+    left: 0px;
+    background-color: white;
+}
+.closed > .menu-button > div:before {
+    top: -0.65em;
+}
+.closed > .menu-button > div:after {
+    top: 0.65em;
+}
+.closed > .menu-button > div:before, .closed > .menu-button > div:after {
+    content: "";
+    position: absolute;
+    height: 0.3em;
+    width: 100%;
+    background-color: white;
+}
+
 
 .minify-button, .opened1>.menu-button {
 	display: block;
@@ -357,6 +388,21 @@ html, body {
     border: none;
 }
 
+.mapctrl-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    overflow: hidden;
+}
+.mapctrl-footer {
+    flex-grow: 0;
+    background-color: blueviolet;
+    border: 2px solid #afafaf;
+}
+
+
+
 .treecontainer {
     font-size: 1.2rem;
     min-width: calc(100% - 10px);
@@ -414,6 +460,10 @@ element.style {
     margin-top: 0px;
     margin-bottom: 0px;
     font-size: 1.5em;
+}
+.facility>div h3, .list-item-view>div h3 {
+    margin-top: 0px;
+    margin-bottom: 1px;
 }
 
 .facility span>*, .list-item-view span>* {
@@ -531,6 +581,8 @@ element.style {
 #ctrl .viewctrl {
     width:100%;
     margin-top: 0.8rem;    
+    flex-grow: 1;
+    max-height: calc(100% - 10px);
 }
 
 .row-wrapper {
@@ -625,6 +677,57 @@ img.legend-item, .legend-item img {
 .icon-selected {
     border: black solid 2px;
     padding: 5px;
-    background-color: white;
+    background-color: #65b32c;
     border-radius: 50%;
 }
+
+.info_view {
+    padding:2rem;
+    font-size: 2rem;
+}
+
+.info_view .menu-button {
+    font-size: 0.6rem;
+    padding: 0.4em;
+    width: calc(2.7em + 0.4em);
+    height: calc(2.7em + 0.4em);
+}
+
+.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+    background-color: gray;
+}
+.marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+    background-color: white;
+}
+
+
+
+.legende {
+    background-color: white;
+    flex-grow: 0;
+    display: flex;
+    flex-wrap: wrap;
+}
+.legende .header {
+    background-color: #65b32c;
+    color: white;
+    width: 100% !important;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    font-size: 2rem;
+}
+.legende > div {
+    width:50%;
+    padding-left: 10px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+.legende img {
+    width:20px;
+    vertical-align: middle;
+}
+.legende span {
+    margin-left: 0.5rem;
+    vertical-align: middle;
+}
+

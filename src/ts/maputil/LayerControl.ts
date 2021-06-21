@@ -6,7 +6,7 @@ import { NodeRenderer } from '../tree/TreeNode';
 import { createHtmlElement } from '../util/HtmlUtil';
 import { CategorieLayer, Category, CategoryMarker, Path } from './CategorieLayer';
 import { MarkerListView } from './MarkerListView';
-import { View } from './ViewControl';
+import { TextView, View } from './ViewControl';
 
 
 
@@ -156,13 +156,17 @@ export class LayerControl extends L.Control {
         }
     }
 
-    _addCategorieLayerToTree(title:string, categorieLayer: CategorieLayer<any, any>) {     
-        console.info(`_addCategorieLayerToTree ${this.tree}`);
+    _addCategorieLayerToTree(title:string, categorieLayer: CategorieLayer<any, any>, hideRoot?:boolean) {     
+        console.info(`_addCategorieLayerToTree ${this.tree} hideRoot=${hideRoot}`);
         if (this.tree) {
             const categories = categorieLayer.getCategories();
-            const treeNode = new TreeNode(title, undefined, {expandOnlyOneNode:true});
+            // const showOnlyChilds = hideRoot? true : false;
+            const showOnlyChilds = hideRoot;
+            const treeNode = new TreeNode(title, undefined, {expandOnlyOneNode:true, showOnlyChilds:showOnlyChilds});
+            
             this.tree.addNode(treeNode);
-            this.addCategories(treeNode, categories);            
+            this.addCategories(treeNode, categories);
+            
             this.categorieLayerNodes[title] = treeNode;
             // treeNode.onSelectionChange.subscribe((node, status)=>this._categorieSelected(title, node, status));
             treeNode.onSelectionChange.subscribe((node, status)=>this._categorieSelected(title, treeNode, status));
@@ -227,6 +231,25 @@ export class LayerControl extends L.Control {
         }
     }
 
+    getItemList(title: string, item: Category):CategoryMarker<any>[] {
+        console.info("getItemList", item);
+        const node:TreeNode = this.categorieLayerNodes[title];        
+        if (node) {
+            const nodes = node.findNode(item.id, 'id');
+            if (nodes) {
+                const path = [];
+                for (let i=nodes.length-2; i>=0; i--) {
+                    path.push(nodes[i].data.id)
+                }
+                console.info("path", path);
+                const layer = this.categorieLayers[title];
+                if (layer) {
+                    return layer.getItems(path);                                        
+                }
+            }
+        }
+    }
+
     getItemListView(title: string, item: Category):View {
         console.info("findItemsOfCategorie", item);
         const node:TreeNode = this.categorieLayerNodes[title];        
@@ -245,6 +268,7 @@ export class LayerControl extends L.Control {
                 }
             }
         }
+        return new TextView(`F&uuml;r die Kategorie "${item.bezeichnung}" wurde leider nichts gefunden.`)
     }
 
     findItemsOfCategorie(title: string, item: Category):CategoryMarker<any>[] {
@@ -297,11 +321,11 @@ export class LayerControl extends L.Control {
     //     return undefined;
     // }
 
-    addCategorieLayer(title:string, categorieLayer: CategorieLayer<any, any>, options:{showAll?:boolean, expandTree:boolean}) {
+    addCategorieLayer(title:string, categorieLayer: CategorieLayer<any, any>, options:{showAll?:boolean, expandTree:boolean, hideRoot?:boolean}) {
         this.categorieLayers[title] = categorieLayer;
         console.info('addCategorieLayer');
         if (this.tree) {
-            this._addCategorieLayerToTree(title, categorieLayer);
+            this._addCategorieLayerToTree(title, categorieLayer, options.hideRoot);
             if (options.showAll) {
                 this.tree.selectNode(title);
             }

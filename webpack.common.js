@@ -52,7 +52,8 @@ module.exports = {
 
 
   entry: {
-    main:path.resolve('./src/index.ts')
+    main:path.resolve('./src/index.ts'),
+    list:path.resolve('./src/list.ts')
   },
 
   plugins: [
@@ -120,7 +121,12 @@ module.exports = {
 
   optimization: {
     minimizer: [
-      new TerserPlugin(), 
+      new TerserPlugin({
+        terserOptions: {
+            keep_classnames: true,
+            keep_fnames: true
+        }
+      }), 
       // new OptimizeCSSAssetsPlugin({}),
       new CssMinimizerPlugin(),
       new HtmlMinimizerPlugin({minimizerOptions: {

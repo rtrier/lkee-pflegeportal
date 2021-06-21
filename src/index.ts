@@ -2,6 +2,7 @@
 // export * from './ts/TreeNode';
 // export * from './ts/Tree';
 import {App} from './ts/App';
+// import {TestApp} from './ts/_tests_/TestApp';
 
 require('./css/main.scss');
 

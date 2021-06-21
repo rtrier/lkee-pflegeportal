@@ -9,7 +9,7 @@
     <link rel="preload" href="https://use.fontawesome.com/releases/v5.7.2/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
     <style>
         #page {
-            display: flex;
+            /* display: flex; */
             position: relative;
             width: 100%;
             height: 100%;
@@ -22,12 +22,24 @@
             padding: 0.2rem;  
             height: 100%;      
         }
+        #mapx {
+            position: relative; 
+            width: 100%; 
+            height: 100%;
+        }
+        #map {
+            position: absolute; 
+            width: calc(100% - 587px); 
+            height: 100%;
+            left: 587px;
+            top:0px;
+        }
     </style>
 </head>
 <body>
     <div id="page">
         <div id="ctrl" class="main"></div>
-        <div id="map" class="main" style="position: relative; width: 100%; height: 100%;"></div>
+        <div id="map" class="main"></div>
     </div>
 </body>
 </html>

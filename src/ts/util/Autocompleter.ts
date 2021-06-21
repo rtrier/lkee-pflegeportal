@@ -198,7 +198,9 @@ export default function autocomplete<T extends AutocompleteItem>(input: HTMLInpu
             containerStyle.top = top + "px";
             containerStyle.bottom = "";
             containerStyle.left = left + "px";
+            console.info(`maxHeight ${maxHeight}`);
             containerStyle.maxHeight = maxHeight + "px";
+            containerStyle.maxHeight = '80%';
         }
 
         // the calc method must be called twice, otherwise the calculation may be wrong on resize event (chrome browser)
@@ -225,6 +227,7 @@ export default function autocomplete<T extends AutocompleteItem>(input: HTMLInpu
             const itemElement = doc.createElement("div");
             // itemElement.textContent = item[labelAttr] || "";
             const textArea = doc.createElement("label");
+            // console.info('render', item);
             textArea.innerText = item[labelAttr] || "";
             itemElement.appendChild(textArea);
             return itemElement;
@@ -245,6 +248,7 @@ export default function autocomplete<T extends AutocompleteItem>(input: HTMLInpu
 
         const fragment = doc.createDocumentFragment();
         let prevGroup = "#9?$";
+        // console.info('prevGroup', prevGroup);
 
         items.forEach(function(item: T): void {
             if (item["group"] && item["group"] !== prevGroup) {
@@ -258,7 +262,8 @@ export default function autocomplete<T extends AutocompleteItem>(input: HTMLInpu
             const div = render(item, inputValue);
             if (div) {
                 div.addEventListener("click", function(ev: MouseEvent): void {
-                    input.value = item[labelAttr];
+                    console.info("onClickAutocompleteItem", item);                    
+                    input.value = item[labelAttr].replace("\n", " ");
                     settings.onSelect(item, input);
                     clear();
                     ev.preventDefault();

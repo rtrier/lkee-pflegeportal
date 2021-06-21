@@ -1,12 +1,15 @@
 
-import {Map, TileLayer} from 'leaflet';
+import {Control, Icon, Map, Polygon, TileLayer} from 'leaflet';
 import { FacilityIconFactory, FacilityPopupFactory, FacilitySelector } from './data/Facility';
+import { lkee } from './LKEE';
 import { CategorieLayer } from './maputil/CategorieLayer';
+import { InfoView } from './maputil/InfoView';
 import { BaseLayerDefinition, LayerControl, LayerControlOptions } from './maputil/LayerControl';
 import { MenuControl } from './maputil/MenuControl';
+import { View, ViewControl } from './maputil/ViewControl';
 import { getJSON } from './util/HtmlUtil';
 
-const host = '/pflegeportal';
+const host = window.location.href.indexOf("localhost")>0 ? '' : '/pflegeportal';
 // const host = '';								
 export class App {
 
@@ -88,15 +91,16 @@ export class App {
         this.menuCtrl = new MenuControl({
 			parent: document.getElementById('ctrl'),										
             position:'topleft', 
-            baseLayerCtrl:this.baseLayerCtrl,
+            // baseLayerCtrl:this.baseLayerCtrl,
             categorieLayerCtrl: this.categorieLayerCtrl,
-            searchFct: (s, cb)=>this._search(s, cb)
+            searchFct: (s, cb)=>this._search(s, cb),
+            viewsHome: new InfoView()
         });
         map.addControl(this.menuCtrl);
 
         map.addLayer(baseLayers[1].layer);
 
-        this.menuCtrl.openMenu();
+        // this.menuCtrl.openMenu();
 
         const storedViewParam = this._getStoredViewParam();
         if (storedViewParam) {
@@ -106,18 +110,31 @@ export class App {
         }
         this.map.setView([51.60340695109007, 13.488503153898543], 10);
 		this.map.createPane("highlightPane").style.zIndex = '625';
-        														  
+        				
+        // const clusterIcon = new Icon({
+        //     iconUrl: 'images/empty.svg',
+        //     iconSize: [40, 40],
+        //     className: 'icon-cluster'
+        // });
         
         const categorieLayer = new CategorieLayer({
             categorieUrl:host+'/kategories',
             url: host+'/facilities',
             selector: new FacilitySelector(),
             popupFactory: new FacilityPopupFactory(),
-            disableClusteringAtZoom: 15,
-            iconFactory: new FacilityIconFactory()
+            // disableClusteringAtZoom: 15,
+            iconFactory: new FacilityIconFactory(),
+            zoomToBoundsOnClick:false,
+            disableClusteringAtZoom:17
+            // ,
+            // iconCreateFunction: function(cluster) {
+            //     return clusterIcon;
+            // }
         });
-		this.menuCtrl.addCategorieLayer(categorieLayer, true);													  
+		this.menuCtrl.addCategorieLayer(categorieLayer, false);
+        
         /*
+
         categorieLayer.once("CategoriesLoaded", (evt)=>{
             console.info('App CategoriesLoaded', categorieLayer);
             this.categorieLayerCtrl.addCategorieLayer("Kategories", categorieLayer);
@@ -129,14 +146,18 @@ export class App {
         this.map.on("zoomend", this.mapViewChanged, this);
         this.map.on("moveend", this.mapViewChanged, this);
         console.info("Map initialisiert");
+
+        this.map.addLayer(new Polygon(lkee));
+
+        map.addControl(new Control.Zoom({position:'topright'}));
+        map.addControl(new Control.Scale({imperial:false, position:'bottomright'}));
    }
 
     private _search(query: string, cb: (results: any[]) => any): void {
-        console.info(`_search ${query}`);
+        // console.info(`_search ${query}`);
         const params = {
             searchTxt: query.toLowerCase()
         }
-
         getJSON(
             host+'/search',
             params,
@@ -148,4 +169,7 @@ export class App {
         console.info("App startet");
         this.initMap();
     }
+
+
+
 }

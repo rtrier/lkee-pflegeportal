@@ -15,6 +15,10 @@ export type Facility = {
     facilityOffers: FacilityOffer[];
 }
 
+function stopBubble(evt:MouseEvent) {
+    evt.cancelBubble = true;
+}
+
 function createEmailLink(email:string):HTMLElement {
     const div = document.createElement('span');    
     const anchor = document.createElement('a');
@@ -30,8 +34,14 @@ function createWebLink(link:string):HTMLElement {
     const div = document.createElement('span');    
     const anchor = document.createElement('a');
     // const anchor = document.createElement('a');
-    anchor.href=link;
+    if (link.indexOf('http')===0) {
+        anchor.href = link;
+    } else {
+        anchor.href = 'http://'+link;
+    }
     anchor.innerHTML = link;
+    anchor.target="_blank";
+    anchor.addEventListener('click', stopBubble);
     // anchor.innerHTML = '<i class="far fa-external-link-square-alt"></i>&nbsp;'+link;
     createHtmlElement('i', div, 'far fa-external-link-square-alt');    
     div.appendChild(anchor);
@@ -44,6 +54,7 @@ function createTelLink(telnr:string):HTMLElement {
     const tel = telnr.replace(/[^\d^\+]/g, '');
     anchor.href='tel:'+tel;
     anchor.innerHTML = telnr;    
+    anchor.addEventListener('click', stopBubble);
     createHtmlElement('i', div, 'far fa-phone-square');    
     div.appendChild(anchor);
     // div.aa.innerHTML = '<i class="far fa-phone-square"></i>&nbsp;'+telnr;
@@ -271,6 +282,12 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
         // const facility = marker.data;
         const divFacility = document.createElement("div");
         divFacility.appendChild(getHeader(facility));
+
+        const catElem = getCategoriesElem(categories, facility);
+        if (catElem) {
+            divFacility.appendChild(catElem);
+        }
+        // divFacility.appendChild(getCategories(categories, facility));
         divFacility.appendChild(getAdress(facility));
         divFacility.appendChild(getContact(facility));
         const rest = getRest(facility);
@@ -283,7 +300,8 @@ export class FacilityPopupFactory implements PopupCreator<Facility> {
     renderDataView(categories:Array<any>, marker: CategoryMarker<Facility>|Facility): HTMLElement {
         // console.info("FacilityPopupFactory.renderDataView");
         const facility = (marker instanceof CategoryMarker) ? marker.data : marker;
-
+        getCategoriesElem(categories, facility);
+        
         const div = document.createElement("div");
         div.className = 'facility';
 
@@ -519,6 +537,39 @@ function getRest(facility:Facility) {
     } else {
         return undefined;
     }
+}
+
+function getCategoriesElem(categories:Category[], facility:Facility):HTMLElement {
+    const cats:string[] = [];
+    if (facility?.facilityOffers) {
+        facility.facilityOffers.forEach(element => {
+            const cat = findCategory(categories, element);
+            if (cat && cats.indexOf(cat.bezeichnung)<0) {
+                cats.push(cat.bezeichnung);
+            }
+            if (!cat) {
+                console.info("kein Cat", facility, element);
+            }
+            
+        });
+        const p = document.createElement("h3");
+        let s:string = '';
+        if (cats?.length>0) {
+            if (cats.length<=4) {
+                s += cats[0];
+                for (let i=1; i<cats.length; i++) {
+                    s += ', ' + cats[i];
+                }
+            } else {
+                s += 'mehr als 5 unterschiedliche Angebote';
+            }
+        }
+        p.innerText = s;
+        return p;
+        console.info(findMainCategories(categories, facility));        
+    }
+    console.info(categories);
+    return undefined;
 }
 
 function getKategories(facility:Facility):any[] {
